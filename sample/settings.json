@@ -1,0 +1,22 @@
+{
+  "bot_token": "",
+  "squchan_user_id": 0,
+  "folle_user_id": 0,
+  "server_id": 0,
+  "pokatto_prestige_path_channel_id": 0,
+  "submission_threads_ids": {
+    "fanarts": 0,
+    "memes": 0,
+    "thumbnails": 0,
+    "video_edits": 0,
+    "youtube_clips": 0
+  },
+  "rewards_prices": {
+    "special_discord_role": 0,
+    "chaos_cat_doodle": 0,
+    "pokattosona": 0,
+    "vip_on_twitch": 0,
+    "store_merch": 0,
+    "clay_pokatto": 0
+  }
+}

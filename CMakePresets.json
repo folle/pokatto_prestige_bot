@@ -1,0 +1,223 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 1
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "description": "Common settings between Windows, Linux and macOS builds.",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/${presetName}",
+      "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    },
+    {
+      "name": "windows-base",
+      "description": "Target Windows with the Visual Studio development environment.",
+      "inherits": "default",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-x64-debug",
+      "displayName": "Windows x64 Debug",
+      "description": "Target Windows (64-bit) with the Visual Studio development environment. (Debug)",
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows-x64-release",
+      "displayName": "Windows x64 Release",
+      "description": "Target Windows (64-bit) with the Visual Studio development environment. (Release)",
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-base",
+      "description": "Target Linux with the gcc/g++ development environment.",
+      "inherits": "default",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-x64-debug",
+      "displayName": "Linux x64 Debug",
+      "description": "Target Linux (64-bit) with the gcc/g++ development environment. (Debug)",
+      "inherits": "linux-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-x64-release",
+      "displayName": "Linux x64 Release",
+      "description": "Target Linux (64-bit) with the gcc/g++ development environment. (Release)",
+      "inherits": "linux-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-aarch64-debug",
+      "displayName": "Linux AArch64 Debug",
+      "description": "Target Linux (AArch64) with the gcc/g++ development environment. (Debug)",
+      "inherits": "linux-base",
+      "architecture": {
+        "value": "ARM64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "environment": {
+        "VCPKG_FORCE_SYSTEM_BINARIES": "1"
+      }
+    },
+    {
+      "name": "linux-aarch64-release",
+      "displayName": "Linux AArch64 Release",
+      "description": "Target Linux (AArch64) with the gcc/g++ development environment. (Release)",
+      "inherits": "linux-base",
+      "architecture": {
+        "value": "ARM64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "environment": {
+        "VCPKG_FORCE_SYSTEM_BINARIES": "1"
+      }
+    },
+    {
+      "name": "mac-base",
+      "description": "Target Mac with the gcc/g++ development environment.",
+      "inherits": "default",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "mac-aarch64-debug",
+      "displayName": "Mac AArch64 Debug",
+      "description": "Target Mac (AArch64) with the gcc/g++ development environment. (Debug)",
+      "inherits": "mac-base",
+      "architecture": {
+        "value": "ARM64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "mac-aarch64-release",
+      "displayName": "Mac AArch64 Release",
+      "description": "Target Mac (AArch64) with the gcc/g++ development environment. (Release)",
+      "inherits": "mac-base",
+      "architecture": {
+        "value": "ARM64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-x64-debug",
+      "displayName": "Windows x64-Debug",
+      "description": "Debug build for Windows x64",
+      "configurePreset": "windows-x64-debug"
+    },
+    {
+      "name": "windows-x64-release",
+      "displayName": "Windows x64-Release",
+      "description": "Release build for Windows x64",
+      "configurePreset": "windows-x64-release"
+    },
+    {
+      "name": "linux-x64-debug",
+      "displayName": "Linux x64-Debug",
+      "description": "Debug build for Linux x64",
+      "configurePreset": "linux-x64-debug"
+    },
+    {
+      "name": "linux-x64-release",
+      "displayName": "Linux x64-Release",
+      "description": "Release build for Linux x64",
+      "configurePreset": "linux-x64-release"
+    },
+    {
+      "name": "linux-aarch64-debug",
+      "displayName": "Linux AArch64-Debug",
+      "description": "Debug build for Linux AArch64",
+      "configurePreset": "linux-aarch64-debug"
+    },
+    {
+      "name": "linux-aarch64-release",
+      "displayName": "Linux AArch64-Release",
+      "description": "Release build for Linux AArch64",
+      "configurePreset": "linux-aarch64-release"
+    },
+    {
+      "name": "mac-aarch64-debug",
+      "displayName": "Mac AArch64-Debug",
+      "description": "Debug build for Mac AArch64",
+      "configurePreset": "mac-aarch64-debug"
+    },
+    {
+      "name": "mac-aarch64-release",
+      "displayName": "Mac AArch64-Release",
+      "description": "Release build for Mac AArch64",
+      "configurePreset": "mac-aarch64-release"
+    }
+  ]
+}
