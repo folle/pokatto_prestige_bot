@@ -509,5 +509,5 @@ void PokattoPrestige::SendLeaderboardMessage(std::string const& leaderboard_mess
 }
 
 void PokattoPrestige::ClearSubmissionsFutures() noexcept {
-  submissions_futures_.remove_if([](auto const& future) { return (std::future_status::ready == future.wait_for(std::chrono::milliseconds(0))); });
+  submissions_futures_.remove_if([](auto const& future) { return std::future_status::ready == future.wait_for(std::chrono::milliseconds(0)); });
 }
