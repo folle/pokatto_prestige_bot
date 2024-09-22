@@ -59,11 +59,15 @@ namespace {
 
   std::queue<std::string> GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) noexcept {
     pokattos_points.sort([](std::pair<dpp::snowflake, size_t> const& lhs, std::pair<dpp::snowflake, size_t> const& rhs)
-                         { return lhs.second < rhs.second; });
+                         { return lhs.second > rhs.second; });
 
     std::queue<std::string> leaderboard_entries;
     std::for_each(pokattos_points.cbegin(), pokattos_points.cend(),
                   [&leaderboard_entries](std::pair<dpp::snowflake, size_t> const& rank_entry) { 
+                    if (rank_entry.second == 0) {
+                      return;
+                    }
+
                     auto const leaderboard_string = fmt::format("{} point{}: {}\n",
                                                             rank_entry.second,
                                                             (rank_entry.second == 1) ? "" : "s",
