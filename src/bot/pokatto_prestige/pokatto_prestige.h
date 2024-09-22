@@ -21,39 +21,39 @@ public:
   PokattoPrestige() = delete;
   ~PokattoPrestige() = default;
 
-  PokattoPrestige(std::shared_ptr<dpp::cluster> bot) noexcept;
+  PokattoPrestige(std::shared_ptr<dpp::cluster> bot);
 
-  bool SuccessfullyInitialized() const noexcept;
   bool IsSubmissionMessage(dpp::snowflake channel_id) const noexcept;
   bool IsValidRating(dpp::snowflake user_id, std::string const& emoji_name) const noexcept;
 
-  void AddRating(dpp::snowflake message_id, dpp::snowflake channel_id, std::string const& emoji_name);
+  void AddRating(dpp::snowflake message_id, dpp::snowflake channel_id, std::string const& emoji_name) noexcept;
 
-  void SendPointsHistory(dpp::snowflake user_id);
+  void SendPointsHistory(dpp::snowflake user_id) noexcept;
 
-  void ResyncAllPoints();
-  void ResyncMissedPoints();
+  void ResyncMissedPoints() noexcept;
 
 private:
-  void HandleMonthChange();
+  bool ResyncAllPoints() noexcept;
 
-  void ClearLeaderboardsMessages() const;
-  void UpdateLeaderboard();
+  bool HandleMonthChange() noexcept;
 
-  void ResyncThreadPoints(dpp::snowflake thread_id, bool skip_processed);
+  bool ClearLeaderboardsMessages() const noexcept;
+  bool UpdateLeaderboard() noexcept;
 
-  void ProcessRating(dpp::snowflake message_id, dpp::snowflake channel_id, size_t rating);
-  void ProcessRating(dpp::message const& message, size_t rating, bool skip_processed);
+  bool ResyncThreadPoints(dpp::snowflake thread_id, bool skip_processed) noexcept;
 
-  void GetMonthAndYearFromTimestamp(std::time_t timestamp, int& month, int& year) const;
+  bool ProcessRating(dpp::snowflake message_id, dpp::snowflake channel_id, size_t rating) noexcept;
+  bool ProcessRating(dpp::message const& message, size_t rating, bool skip_processed) noexcept;
 
-  dpp::user_map GetReactionUsers(dpp::message const& message, std::string const& emoji_name, dpp::snowflake emoji_id = 0) const;
+  bool GetMonthAndYearFromTimestamp(std::time_t timestamp, int& month, int& year) const noexcept;
 
-  void SendThreadPointsToUser(dpp::snowflake thread_id, dpp::snowflake user_id) const;
-  void SendDirectMessage(dpp::snowflake user_id, std::string const& message) const;
+  bool GetReactionUsers(dpp::message const& message, std::string const& emoji_name, dpp::snowflake emoji_id, dpp::user_map& reaction_users) const noexcept;
 
-  void ProcessLeaderboardEntries(std::string& leaderboard_message, std::queue<std::string>& leaderboard_entries) const;
-  void SendLeaderboardMessage(std::string const& leaderboard_message) const;
+  bool SendThreadPointsToUser(dpp::snowflake thread_id, dpp::snowflake user_id) const noexcept;
+  bool SendDirectMessage(dpp::snowflake user_id, std::string const& message) const noexcept;
+
+  bool ProcessLeaderboardEntries(std::string& leaderboard_message, std::queue<std::string>& leaderboard_entries) const noexcept;
+  bool SendLeaderboardMessage(std::string const& leaderboard_message) const noexcept;
 
   void ClearSubmissionsFutures() noexcept;
 
@@ -75,6 +75,4 @@ private:
 
   std::mutex submissions_mutex_;
   std::list<std::future<void>> submissions_futures_;
-
-  bool successfully_initialized_ = {};
 };

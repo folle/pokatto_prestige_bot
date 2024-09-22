@@ -25,50 +25,29 @@ PokattoData::PokattoData(dpp::snowflake const user_id) noexcept :
 
 }
 
-std::map<dpp::snowflake, PokattoData> PokattoData::ReadPokattosData(bool& all_successful) noexcept {
-  all_successful = true;
-  
-  try {
-    if (!std::filesystem::exists(kDataDirectory)) {
-      if (!std::filesystem::create_directory(kDataDirectory)) {
-        all_successful = false;
-      }
-
-      return {};
-    }
-  } catch (std::exception const& exception) {
-    all_successful = false;
-    return {};
+std::map<dpp::snowflake, PokattoData> PokattoData::ReadPokattosData() {  
+  if (!std::filesystem::exists(kDataDirectory) && !std::filesystem::create_directory(kDataDirectory)) {
+    throw std::runtime_error("Failed to create data directory");
   }
 
   std::map<dpp::snowflake, PokattoData> pokattos_data;
   for (auto const& directory_entry : std::filesystem::directory_iterator(kDataDirectory)) {
     auto const& file_path = directory_entry.path();
 
-    dpp::snowflake user_id{};
-    try {
-      user_id = std::stoull(file_path.stem().string());
-    } catch (std::exception const& rest_exception) {
-      all_successful = false;
-      return {};
-    }
+    auto const user_id = static_cast<dpp::snowflake>(std::stoull(file_path.stem().string()));
+
+
+    std::ifstream pokatto_data_file(file_path);
+    auto const pokatto_data_json = nlohmann::json::parse(pokatto_data_file);
+    auto const& unlocked_rewards_json = pokatto_data_json[kUnlockedRewardsKey];
 
     std::map<Settings::Rewards, bool> unlocked_rewards;
-    std::ifstream pokatto_data_file(file_path);
-    try {
-      auto const pokatto_data_json = nlohmann::json::parse(pokatto_data_file);
-      auto const& unlocked_rewards_json = pokatto_data_json[kUnlockedRewardsKey];
-
-      unlocked_rewards.emplace(Settings::Rewards::kSpecialDiscordRole, unlocked_rewards_json[kSpecialDiscordRoleKey]);
-      unlocked_rewards.emplace(Settings::Rewards::kChaosCatDoodle, unlocked_rewards_json[kChaosCatDoodleKey]);
-      unlocked_rewards.emplace(Settings::Rewards::kPokattosona, unlocked_rewards_json[kPokattosonaKey]);
-      unlocked_rewards.emplace(Settings::Rewards::kVipOnTwitch, unlocked_rewards_json[kVipOnTwitchKey]);
-      unlocked_rewards.emplace(Settings::Rewards::kStoreMerch, unlocked_rewards_json[kStoreMerchKey]);
-      unlocked_rewards.emplace(Settings::Rewards::kClayPokatto, unlocked_rewards_json[kClayPokattoKey]);
-    } catch (std::exception const& rest_exception) {
-      all_successful = false;
-      return {};
-    }
+    unlocked_rewards.emplace(Settings::Rewards::kSpecialDiscordRole, unlocked_rewards_json[kSpecialDiscordRoleKey]);
+    unlocked_rewards.emplace(Settings::Rewards::kChaosCatDoodle, unlocked_rewards_json[kChaosCatDoodleKey]);
+    unlocked_rewards.emplace(Settings::Rewards::kPokattosona, unlocked_rewards_json[kPokattosonaKey]);
+    unlocked_rewards.emplace(Settings::Rewards::kVipOnTwitch, unlocked_rewards_json[kVipOnTwitchKey]);
+    unlocked_rewards.emplace(Settings::Rewards::kStoreMerch, unlocked_rewards_json[kStoreMerchKey]);
+    unlocked_rewards.emplace(Settings::Rewards::kClayPokatto, unlocked_rewards_json[kClayPokattoKey]);
 
     PokattoData pokatto_data(user_id);
     pokatto_data.unlocked_rewards_ = std::move(unlocked_rewards);

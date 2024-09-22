@@ -14,7 +14,7 @@ public:
 
   PokattoData(dpp::snowflake user_id) noexcept;
 
-  static std::map<dpp::snowflake, PokattoData> ReadPokattosData(bool& all_successful) noexcept;
+  static std::map<dpp::snowflake, PokattoData> ReadPokattosData();
   
   bool UnlockReward(Settings::Rewards reward) noexcept;
   bool IsRewardUnlocked(Settings::Rewards reward) noexcept;
