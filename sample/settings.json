@@ -1,5 +1,6 @@
 {
   "bot_token": "",
+  "bot_user_id": 0,
   "squchan_user_id": 0,
   "folle_user_id": 0,
   "server_id": 0,

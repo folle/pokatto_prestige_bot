@@ -246,7 +246,7 @@ bool PokattoPrestige::ClearLeaderboardsMessages() const noexcept {
         latest_message_id = message_id;
       }
 
-      if (bot_->me.id != message.author.id) {
+      if (Settings::Get().GetBotUserId() != message.author.id) {
         continue;
       }
 
@@ -364,7 +364,7 @@ bool PokattoPrestige::ProcessRating(dpp::message const& message, size_t const ra
   }
 
   auto const processed = std::any_of(processed_reaction_users.cbegin(), processed_reaction_users.cend(),
-                                      [this](auto const& user) { return bot_->me.id == user.first; });
+                                      [this](auto const& user) { return Settings::Get().GetBotUserId() == user.first; });
   if (processed && skip_processed) {
     logger_.Info("Rating skipped. Message id: '{}'. Rating: '{}'. User id: '{}'. Processed: '{}'. Skip Processed: '{}'",
                   message.id, rating, user_id, processed, skip_processed);

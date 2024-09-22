@@ -93,8 +93,8 @@ void PokattoPrestigeBot::OnSlashCommand(dpp::slashcommand_t const& slash_command
 
 bool PokattoPrestigeBot::DeploySlashCommands() const {
   if (dpp::run_once<struct register_bot_commands>()) {
-    dpp::slashcommand get_points_history_command(kGetPointsHistorySlashCommand, "You will be DM'd all yours posts and points.", bot_->me.id);
-    dpp::slashcommand resync_missed_points_command(kResyncMissedPointsSlashCommand, "SquChan only. Triggers a resync of any missed points.", bot_->me.id);
+    dpp::slashcommand get_points_history_command(kGetPointsHistorySlashCommand, "You will be DM'd all yours posts and points.", Settings::Get().GetBotUserId());
+    dpp::slashcommand resync_missed_points_command(kResyncMissedPointsSlashCommand, "SquChan only. Triggers a resync of any missed points.", Settings::Get().GetBotUserId());
 
     bot_->guild_bulk_command_create_sync({get_points_history_command, resync_missed_points_command}, Settings::Get().GetServerId());
 

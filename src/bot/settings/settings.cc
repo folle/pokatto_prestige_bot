@@ -69,6 +69,8 @@ Settings::Settings() {
 
   bot_token_ = discord_settings_json["bot_token"].get<std::string>();
 
+  bot_user_id_ = discord_settings_json["bot_user_id"].get<dpp::snowflake>();
+
   squchan_user_id_ = discord_settings_json["squchan_user_id"].get<dpp::snowflake>();
   
   folle_user_id_ = discord_settings_json["folle_user_id"].get<dpp::snowflake>();
@@ -96,8 +98,8 @@ std::string const& Settings::GetBotToken() const noexcept {
   return bot_token_;
 }
 
-dpp::snowflake Settings::GetServerId() const noexcept {
-  return server_id_;
+dpp::snowflake Settings::GetBotUserId() const noexcept {
+  return bot_user_id_;
 }
 
 dpp::snowflake Settings::GetSquchanUserId() const noexcept {
@@ -106,6 +108,10 @@ dpp::snowflake Settings::GetSquchanUserId() const noexcept {
 
 dpp::snowflake Settings::GetFolleUserId() const noexcept {
   return folle_user_id_;
+}
+
+dpp::snowflake Settings::GetServerId() const noexcept {
+  return server_id_;
 }
 
 dpp::snowflake Settings::GetPokattoPrestigePathChannelId() const noexcept {

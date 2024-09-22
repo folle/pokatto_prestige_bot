@@ -35,9 +35,10 @@ public:
 
   std::string const& GetBotToken() const noexcept;
 
-  dpp::snowflake GetServerId() const noexcept;
+  dpp::snowflake GetBotUserId() const noexcept;
   dpp::snowflake GetSquchanUserId() const noexcept;
   dpp::snowflake GetFolleUserId() const noexcept;
+  dpp::snowflake GetServerId() const noexcept;
   dpp::snowflake GetPokattoPrestigePathChannelId() const noexcept;
   dpp::snowflake GetThreadId(Threads const thread) const noexcept;
 
@@ -54,6 +55,7 @@ private:
   std::string bot_token_;
 
   dpp::snowflake server_id_ = {};
+  dpp::snowflake bot_user_id_ = {};
   dpp::snowflake squchan_user_id_ = {};
   dpp::snowflake folle_user_id_ = {};
   dpp::snowflake pokatto_prestige_path_channel_id_ = {};
