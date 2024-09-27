@@ -57,6 +57,8 @@ private:
 
   void ClearSubmissionsFutures() noexcept;
 
+  std::queue<std::string> GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) const noexcept;
+
 private:
   Logger const logger_ = LoggerFactory::Get().Create("Pokatto Prestige");
   

@@ -57,27 +57,6 @@ namespace {
     }
   }
 
-  std::queue<std::string> GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) noexcept {
-    pokattos_points.sort([](std::pair<dpp::snowflake, size_t> const& lhs, std::pair<dpp::snowflake, size_t> const& rhs)
-                         { return lhs.second > rhs.second; });
-
-    std::queue<std::string> leaderboard_entries;
-    std::for_each(pokattos_points.cbegin(), pokattos_points.cend(),
-                  [&leaderboard_entries](std::pair<dpp::snowflake, size_t> const& rank_entry) { 
-                    if (rank_entry.second == 0) {
-                      return;
-                    }
-
-                    auto const leaderboard_string = fmt::format("{} point{}: {}\n",
-                                                            rank_entry.second,
-                                                            (rank_entry.second == 1) ? "" : "s",
-                                                            dpp::user::get_mention(rank_entry.first));
-                    leaderboard_entries.push(leaderboard_string);
-                  });
-        
-    return leaderboard_entries;
-  }
-
   std::string GetMonthString(int const month) noexcept {
     switch (month) {
       case 0: { return "January"; }
@@ -277,7 +256,7 @@ bool PokattoPrestige::UpdateLeaderboard() noexcept {
     return false;
   }
   
-  auto leaderboard_entries = ::GetSortedLeaderboardEntries(pokattos_total_points_);
+  auto leaderboard_entries = GetSortedLeaderboardEntries(pokattos_total_points_);
   std::string leaderboard_message;
   leaderboard_message.reserve(kMaxMessageLength);
   leaderboard_message = "**Full Pokatto Prestige Leaderboard:**\n";
@@ -285,7 +264,7 @@ bool PokattoPrestige::UpdateLeaderboard() noexcept {
     return false;
   }
 
-  auto monthly_leaderboard_entries = ::GetSortedLeaderboardEntries(pokattos_monthly_points_);
+  auto monthly_leaderboard_entries = GetSortedLeaderboardEntries(pokattos_monthly_points_);
   std::string monthly_leaderboard_message;
   monthly_leaderboard_message.reserve(kMaxMessageLength);
   monthly_leaderboard_message = fmt::format("**Monthly Pokatto Prestige Leaderboard - {}:**\n", ::GetMonthString(current_month_));
@@ -581,4 +560,34 @@ bool PokattoPrestige::SendLeaderboardMessage(std::string const& leaderboard_mess
 
 void PokattoPrestige::ClearSubmissionsFutures() noexcept {
   submissions_futures_.remove_if([](auto const& future) { return std::future_status::ready == future.wait_for(std::chrono::milliseconds(0)); });
+}
+
+std::queue<std::string> PokattoPrestige::GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) const noexcept {
+  pokattos_points.sort([](std::pair<dpp::snowflake, size_t> const& lhs, std::pair<dpp::snowflake, size_t> const& rhs)
+                        { return lhs.second > rhs.second; });
+
+  std::queue<std::string> leaderboard_entries;
+  std::for_each(pokattos_points.cbegin(), pokattos_points.cend(),
+                [this, &leaderboard_entries](std::pair<dpp::snowflake, size_t> const& rank_entry) { 
+                  if (rank_entry.second == 0) {
+                    return;
+                  }
+
+                  std::string username;
+                  try {
+                    auto const user = bot_->user_get_sync(rank_entry.first);
+                    username = user.username;
+                  } catch (dpp::exception const& rest_exception) {
+                    logger_.Error("Failed to get user. User id: '{}'. Exception '{}'", rank_entry.first, rest_exception.what());
+                  }
+
+                  auto const leaderboard_string = fmt::format("{} point{}: {} - ({})\n",
+                                                          rank_entry.second,
+                                                          (rank_entry.second == 1) ? "" : "s",
+                                                          dpp::user::get_mention(rank_entry.first),
+                                                          username);
+                  leaderboard_entries.push(leaderboard_string);
+                });
+      
+  return leaderboard_entries;
 }
