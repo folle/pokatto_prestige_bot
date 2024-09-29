@@ -18,7 +18,7 @@ public:
   void Start() const noexcept;
 
 private:
-  void OnLog(dpp::log_t const& event) const noexcept;
+  void OnLog(dpp::log_t const& log) const noexcept;
   void OnMessageReactionAdd(dpp::message_reaction_add_t const& message_reaction_add) noexcept;
   void OnReady(dpp::ready_t const& ready) const noexcept;
   void OnSlashCommand(dpp::slashcommand_t const& slash_command) noexcept;
