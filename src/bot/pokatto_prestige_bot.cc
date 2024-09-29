@@ -39,6 +39,14 @@ void PokattoPrestigeBot::Start() const noexcept {
 
 void PokattoPrestigeBot::OnLog(dpp::log_t const& event) const noexcept {
   switch (event.severity) {
+    case dpp::ll_trace: {
+      logger_.Trace("{}", event.message);
+      break;
+    }
+    case dpp::ll_debug: {
+      logger_.Debug("{}", event.message);
+      break;
+    }
     case dpp::ll_info: {
       logger_.Info("{}", event.message);
       break;
@@ -47,8 +55,15 @@ void PokattoPrestigeBot::OnLog(dpp::log_t const& event) const noexcept {
       logger_.Warn("{}", event.message);
       break;
     }
-    default: {
+    case dpp::ll_error: {
       logger_.Error("{}", event.message);
+      break;
+    }
+    case dpp::ll_critical: {
+      [[fallthrough]];
+    }
+    default: {
+      logger_.Critical("{}", event.message);
       break;
     }
   }

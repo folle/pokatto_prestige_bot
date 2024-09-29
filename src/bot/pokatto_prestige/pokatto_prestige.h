@@ -1,6 +1,9 @@
 #pragma once
 
+#include <atomic>
+#include <condition_variable>
 #include <cstdlib>
+#include <functional>
 #include <future>
 #include <list>
 #include <map>
@@ -8,6 +11,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 #include <utility>
 
 #include <dpp/dpp.h>
@@ -19,7 +23,7 @@
 class PokattoPrestige final {
 public:
   PokattoPrestige() = delete;
-  ~PokattoPrestige() = default;
+  ~PokattoPrestige();
 
   PokattoPrestige(std::shared_ptr<dpp::cluster> bot);
 
@@ -55,9 +59,11 @@ private:
   bool ProcessLeaderboardEntries(std::string& leaderboard_message, std::queue<std::string>& leaderboard_entries) const noexcept;
   bool SendLeaderboardMessage(std::string const& leaderboard_message) const noexcept;
 
-  void ClearSubmissionsFutures() noexcept;
+  std::queue<std::string> GetSortedLeaderboardEntries(bool monthly) noexcept;
 
-  std::queue<std::string> GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) const noexcept;
+  void Process() noexcept;
+
+  void QueueSubmission(std::function<void()> const& processing_function) noexcept;
 
 private:
   Logger const logger_ = LoggerFactory::Get().Create("Pokatto Prestige");
@@ -67,7 +73,6 @@ private:
   std::map<std::string, size_t> const rating_emojis_ = {{"x_", 0}, {"1️⃣", 1}, {"2️⃣", 2}, {"3️⃣", 3}, {"4️⃣", 4},
                                                         {"5️⃣", 5}, {"6️⃣", 6}, {"7️⃣", 7}, {"8️⃣", 8}, {"9️⃣", 9}};
 
-  std::mutex pokattos_mutex_;
   std::map<dpp::snowflake, PokattoData> pokattos_data_;
   std::list<std::pair<dpp::snowflake, size_t>> pokattos_total_points_;
   std::list<std::pair<dpp::snowflake, size_t>> pokattos_monthly_points_;
@@ -75,6 +80,10 @@ private:
   int current_month_ = {};
   int current_year_ = {};
 
+  std::atomic<bool> process_submissions_ = true;
   std::mutex submissions_mutex_;
-  std::list<std::future<void>> submissions_futures_;
+  std::condition_variable submission_condition_variable_;
+  std::queue<std::future<void>> submissions_futures_;
+
+  std::thread process_submissions_thread_ = std::thread([this](){ Process(); });
 };

@@ -97,6 +97,16 @@ PokattoPrestige::PokattoPrestige(std::shared_ptr<dpp::cluster> bot) :
   if (!ResyncAllPoints()) {
     throw std::runtime_error("Failed to resync pokattos points");
   }
+
+  logger_.Info("Initialised Pokatto Prestige");
+}
+
+PokattoPrestige::~PokattoPrestige() {
+  process_submissions_ = false;
+  submission_condition_variable_.notify_one();
+  process_submissions_thread_.join();
+
+  logger_.Info("Terminated Pokatto Prestige");
 }
 
 bool PokattoPrestige::IsSubmissionMessage(dpp::snowflake const channel_id) const noexcept {
@@ -112,42 +122,32 @@ bool PokattoPrestige::IsValidRating(dpp::snowflake const user_id, std::string co
 }
 
 void PokattoPrestige::AddRating(dpp::snowflake const message_id, dpp::snowflake const channel_id, std::string const& emoji_name) noexcept {
-  std::scoped_lock<std::mutex> const mutex_lock(submissions_mutex_);
-
-  ClearSubmissionsFutures();
-  
   auto const& rating = rating_emojis_.at(emoji_name);
-  submissions_futures_.push_back(
-    std::async([this, channel_id, message_id, rating]{
-      logger_.Info("Adding rating. Message id: '{}'. Rating: '{}'", message_id, rating);
+  auto const add_rating_processing_function = std::function<void()>([this, channel_id, message_id, rating]{
+    logger_.Info("Adding rating. Message id: '{}'. Rating: '{}'", message_id, rating);
 
-      auto const process_rating = ProcessRating(message_id, channel_id, rating);
-      if (process_rating && (0 < rating)) {
-        UpdateLeaderboard();
-      }
+    auto const process_rating = ProcessRating(message_id, channel_id, rating);
+    if (process_rating && (0 < rating)) {
+      UpdateLeaderboard();
+    }
 
-      logger_.Info("Finished adding rating. Message id: '{}'. Rating: '{}'", message_id, rating);
-    })
-  );
+    logger_.Info("Finished adding rating. Message id: '{}'. Rating: '{}'", message_id, rating);
+  });
+  QueueSubmission(add_rating_processing_function);
 }
 
 void PokattoPrestige::SendPointsHistory(dpp::snowflake const user_id) noexcept {
-  std::scoped_lock<std::mutex> const mutex_lock(submissions_mutex_);
+  auto const send_points_history_processing_function = std::function<void()>([this, user_id]{
+    logger_.Info("Sending points history. User id: '{}'", user_id);
 
-  ClearSubmissionsFutures();
+    for (size_t thread = static_cast<size_t>(Settings::Threads::kBegin); thread < static_cast<size_t>(Settings::Threads::kEnd); ++thread) {
+      auto const thread_id = Settings::Get().GetThreadId(static_cast<Settings::Threads>(thread));
+      SendThreadPointsToUser(thread_id, user_id);
+    }
 
-  submissions_futures_.push_back(
-    std::async([this, user_id]{
-      logger_.Info("Sending points history. User id: '{}'", user_id);
-
-      for (size_t thread = static_cast<size_t>(Settings::Threads::kBegin); thread < static_cast<size_t>(Settings::Threads::kEnd); ++thread) {
-        auto const thread_id = Settings::Get().GetThreadId(static_cast<Settings::Threads>(thread));
-        SendThreadPointsToUser(thread_id, user_id);
-      }
-
-      logger_.Info("Finished sending points history. User id: '{}'", user_id);
-    })
-  );
+    logger_.Info("Finished sending points history. User id: '{}'", user_id);
+  });
+  QueueSubmission(send_points_history_processing_function);
 }
 
 bool PokattoPrestige::ResyncAllPoints() noexcept {
@@ -170,24 +170,19 @@ bool PokattoPrestige::ResyncAllPoints() noexcept {
 }
 
 void PokattoPrestige::ResyncMissedPoints() noexcept {
-  std::scoped_lock<std::mutex> const mutex_lock(submissions_mutex_);
+  auto const resync_missed_points_processing_function = std::function<void()>([this]{
+    logger_.Info("Resyncing missed points");
 
-  ClearSubmissionsFutures();
+    for (size_t thread = static_cast<size_t>(Settings::Threads::kBegin); thread < static_cast<size_t>(Settings::Threads::kEnd); ++thread) {
+      auto const thread_id = Settings::Get().GetThreadId(static_cast<Settings::Threads>(thread));
+      ResyncThreadPoints(thread_id, true);
+    }
 
-  submissions_futures_.push_back(
-    std::async([this]{
-      logger_.Info("Resyncing missed points");
+    UpdateLeaderboard();
 
-      for (size_t thread = static_cast<size_t>(Settings::Threads::kBegin); thread < static_cast<size_t>(Settings::Threads::kEnd); ++thread) {
-        auto const thread_id = Settings::Get().GetThreadId(static_cast<Settings::Threads>(thread));
-        ResyncThreadPoints(thread_id, true);
-      }
-
-      UpdateLeaderboard();
-
-      logger_.Info("Finished resyncing missed points");
-    })
-  );
+    logger_.Info("Finished resyncing missed points");
+  });
+  QueueSubmission(resync_missed_points_processing_function);
 }
 
 bool PokattoPrestige::HandleMonthChange() noexcept {
@@ -198,7 +193,6 @@ bool PokattoPrestige::HandleMonthChange() noexcept {
     return false;
   }
 
-  std::scoped_lock<std::mutex> const mutex_lock(pokattos_mutex_);
   if ((month != current_month_) || (year != current_year_)) {
     logger_.Info("Monthly leaderboard has been reseted");
 
@@ -220,7 +214,7 @@ bool PokattoPrestige::ClearLeaderboardsMessages() const noexcept {
     try {
       messages = bot_->messages_get_sync(Settings::Get().GetPokattoPrestigePathChannelId(), {}, {}, latest_message_id, kMaxMessagesPerGetCall);
     } catch (dpp::exception const& rest_exception) {
-      logger_.Error("Failed to get leaderboard messages. Exception '{}'", rest_exception.what());
+      logger_.Error("Failed to get leaderboard messages. Exception: '{}'", rest_exception.what());
       return false;
     }
 
@@ -256,19 +250,18 @@ bool PokattoPrestige::UpdateLeaderboard() noexcept {
     return false;
   }
   
-  auto leaderboard_entries = GetSortedLeaderboardEntries(pokattos_total_points_);
   std::string leaderboard_message;
   leaderboard_message.reserve(kMaxMessageLength);
+
+  auto leaderboard_entries = GetSortedLeaderboardEntries(false);
   leaderboard_message = "**Full Pokatto Prestige Leaderboard:**\n";
   if (!ProcessLeaderboardEntries(leaderboard_message, leaderboard_entries)) {
     return false;
   }
 
-  auto monthly_leaderboard_entries = GetSortedLeaderboardEntries(pokattos_monthly_points_);
-  std::string monthly_leaderboard_message;
-  monthly_leaderboard_message.reserve(kMaxMessageLength);
-  monthly_leaderboard_message = fmt::format("**Monthly Pokatto Prestige Leaderboard - {}:**\n", ::GetMonthString(current_month_));
-  if (!ProcessLeaderboardEntries(monthly_leaderboard_message, monthly_leaderboard_entries)) {
+  leaderboard_entries = GetSortedLeaderboardEntries(true);
+  leaderboard_message = fmt::format("**Monthly Pokatto Prestige Leaderboard - {}:**\n", ::GetMonthString(current_month_));
+  if (!ProcessLeaderboardEntries(leaderboard_message, leaderboard_entries)) {
     return false;
   }
 
@@ -282,7 +275,7 @@ bool PokattoPrestige::ResyncThreadPoints(dpp::snowflake const thread_id, bool co
     try {
       messages = bot_->messages_get_sync(thread_id, {}, {}, latest_message_id, kMaxMessagesPerGetCall);
     } catch (dpp::exception const& rest_exception) {
-      logger_.Error("Failed to get submission messages. Thread id: '{}'. Exception '{}'", thread_id, rest_exception.what());
+      logger_.Error("Failed to get submission messages. Thread id: '{}'. Exception: '{}'", thread_id, rest_exception.what());
       return false;
     }
 
@@ -322,7 +315,7 @@ bool PokattoPrestige::ProcessRating(dpp::snowflake const message_id, dpp::snowfl
   try {
     message = bot_->message_get_sync(message_id, channel_id);
   } catch (dpp::exception const& rest_exception) {
-    logger_.Error("Failed to get submission message. Message id: '{}'. Channel id: '{}'. Exception '{}'", message_id, channel_id, rest_exception.what());
+    logger_.Error("Failed to get submission message. Message id: '{}'. Channel id: '{}'. Exception: '{}'", message_id, channel_id, rest_exception.what());
     return false;
   }
 
@@ -338,8 +331,6 @@ bool PokattoPrestige::ProcessRating(dpp::message const& message, size_t const ra
   if (!HandleMonthChange()) {
     return false;
   }
-
-  std::scoped_lock<std::mutex> const mutex_lock(pokattos_mutex_);
 
   dpp::user_map processed_reaction_users;
   if (!GetReactionUsers(message, kProcessedMessageEmoji, {}, processed_reaction_users)) {
@@ -408,7 +399,7 @@ bool PokattoPrestige::ProcessRating(dpp::message const& message, size_t const ra
     }
   }
   catch (dpp::exception const& rest_exception) {
-    logger_.Error("Failed to add processed reaction. Message id: '{}'. User id: '{}'. Exception '{}'", message.id, user_id, rest_exception.what());
+    logger_.Error("Failed to add processed reaction. Message id: '{}'. User id: '{}'. Exception: '{}'", message.id, user_id, rest_exception.what());
     return false;
   }
 
@@ -436,7 +427,7 @@ bool PokattoPrestige::GetReactionUsers(dpp::message const& message, std::string 
     auto const reaction = (emoji_id > 0) ? fmt::format("{}:{}", emoji_name, emoji_id) : emoji_name;
     reaction_users = bot_->message_get_reactions_sync(message, reaction, {}, {}, std::numeric_limits<dpp::snowflake>::max());
   } catch (dpp::exception const& rest_exception) {
-    logger_.Error("Failed to get message reactions. Message id: '{}'. Emoji name: '{}'. Exception '{}'", message.id, emoji_name, rest_exception.what());
+    logger_.Error("Failed to get message reactions. Message id: '{}'. Emoji name: '{}'. Exception: '{}'", message.id, emoji_name, rest_exception.what());
     return false;
   }
 
@@ -452,7 +443,7 @@ bool PokattoPrestige::SendThreadPointsToUser(dpp::snowflake thread_id, dpp::snow
     try {
       messages = bot_->messages_get_sync(thread_id, {}, {}, latest_message_id, kMaxMessagesPerGetCall);
     } catch (dpp::exception const& rest_exception) {
-      logger_.Error("Failed to get submission thread messages. Thread id: '{}'. Exception '{}'", thread_id, rest_exception.what());
+      logger_.Error("Failed to get submission thread messages. Thread id: '{}'. Exception: '{}'", thread_id, rest_exception.what());
       return false;
     }
 
@@ -519,7 +510,7 @@ bool PokattoPrestige::SendDirectMessage(dpp::snowflake const user_id, std::strin
   try {
     bot_->direct_message_create_sync(user_id, dpp::message(message));
   } catch (dpp::exception const& rest_exception) {
-    logger_.Error("Failed to send direct message. User id: '{}'. Message: '{}' Exception '{}'", user_id, message, rest_exception.what());
+    logger_.Error("Failed to send direct message. User id: '{}'. Message: '{}' Exception: '{}'", user_id, message, rest_exception.what());
     return false;
   }
 
@@ -551,20 +542,16 @@ bool PokattoPrestige::SendLeaderboardMessage(std::string const& leaderboard_mess
   try {
     bot_->message_create_sync(message);
   } catch (dpp::exception const& rest_exception) {
-    logger_.Error("Failed to send leaderboard message. Message: '{}'. Exception '{}'", leaderboard_message, rest_exception.what());
+    logger_.Error("Failed to send leaderboard message. Message: '{}'. Exception: '{}'", leaderboard_message, rest_exception.what());
     return false;
   }
 
   return true;
 }
 
-void PokattoPrestige::ClearSubmissionsFutures() noexcept {
-  submissions_futures_.remove_if([](auto const& future) { return std::future_status::ready == future.wait_for(std::chrono::milliseconds(0)); });
-}
-
-std::queue<std::string> PokattoPrestige::GetSortedLeaderboardEntries(std::list<std::pair<dpp::snowflake, size_t>>& pokattos_points) const noexcept {
-  pokattos_points.sort([](std::pair<dpp::snowflake, size_t> const& lhs, std::pair<dpp::snowflake, size_t> const& rhs)
-                        { return lhs.second > rhs.second; });
+std::queue<std::string> PokattoPrestige::GetSortedLeaderboardEntries(bool const monthly) noexcept {
+  auto& pokattos_points = monthly ? pokattos_monthly_points_ : pokattos_total_points_;
+  pokattos_points.sort([](std::pair<dpp::snowflake, size_t> const& lhs, std::pair<dpp::snowflake, size_t> const& rhs){ return lhs.second > rhs.second; });
 
   std::queue<std::string> leaderboard_entries;
   std::for_each(pokattos_points.cbegin(), pokattos_points.cend(),
@@ -575,19 +562,45 @@ std::queue<std::string> PokattoPrestige::GetSortedLeaderboardEntries(std::list<s
 
                   std::string username;
                   try {
-                    auto const user = bot_->user_get_sync(rank_entry.first);
+                    auto const user = bot_->user_get_cached_sync(rank_entry.first);
                     username = user.username;
                   } catch (dpp::exception const& rest_exception) {
-                    logger_.Error("Failed to get user. User id: '{}'. Exception '{}'", rank_entry.first, rest_exception.what());
+                    logger_.Error("Failed to get user. User id: '{}'. Exception: '{}'", rank_entry.first, rest_exception.what());
+                    username = "?";
                   }
 
                   auto const leaderboard_string = fmt::format("{} point{}: {} - ({})\n",
-                                                          rank_entry.second,
-                                                          (rank_entry.second == 1) ? "" : "s",
-                                                          dpp::user::get_mention(rank_entry.first),
-                                                          username);
+                                                              rank_entry.second,
+                                                              (rank_entry.second == 1) ? "" : "s",
+                                                              dpp::user::get_mention(rank_entry.first),
+                                                              username);
                   leaderboard_entries.push(leaderboard_string);
                 });
       
   return leaderboard_entries;
+}
+
+void PokattoPrestige::Process() noexcept {
+  while (process_submissions_) {
+    std::future<void> submission_future;
+    {
+      std::unique_lock<std::mutex> mutex_unique_lock(submissions_mutex_);
+      submission_condition_variable_.wait(mutex_unique_lock, [this]{ return !submissions_futures_.empty() || !process_submissions_; });
+
+      if (!submissions_futures_.empty()) {
+        submission_future = std::move(submissions_futures_.front());
+        submissions_futures_.pop();
+      }
+    }
+
+    if (submission_future.valid()) {
+      submission_future.get();
+    }
+  }
+}
+
+void PokattoPrestige::QueueSubmission(std::function<void()> const& processing_function) noexcept {
+  std::lock_guard<std::mutex> const mutex_lock_guard(submissions_mutex_);
+  submissions_futures_.push(std::async(std::launch::deferred, processing_function));
+  submission_condition_variable_.notify_one();
 }
