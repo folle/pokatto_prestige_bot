@@ -70,12 +70,8 @@ void PokattoPrestigeBot::OnLog(dpp::log_t const& event) const noexcept {
 }
 
 void PokattoPrestigeBot::OnMessageReactionAdd(dpp::message_reaction_add_t const& message_reaction_add) noexcept {
-  if (!pokatto_prestige_->IsSubmissionMessage(message_reaction_add.channel_id) ||
-      !pokatto_prestige_->IsValidRating(message_reaction_add.reacting_user.id, message_reaction_add.reacting_emoji.name)) {
-    return;
-  }
-
-  pokatto_prestige_->AddRating(message_reaction_add.message_id, message_reaction_add.channel_id, message_reaction_add.reacting_emoji.name);
+  pokatto_prestige_->AddRating(message_reaction_add.message_id, message_reaction_add.channel_id,
+                               message_reaction_add.reacting_user.id, message_reaction_add.reacting_emoji.name);
 }
 
 void PokattoPrestigeBot::OnReady(dpp::ready_t const& ready) const noexcept {
@@ -94,7 +90,7 @@ void PokattoPrestigeBot::OnSlashCommand(dpp::slashcommand_t const& slash_command
   } else if (slash_command.command.get_command_name() == kResyncMissedPointsSlashCommand) {
     logger_.Info("Received 'resync_missed_points' slash command");
 
-    if (slash_command.command.get_issuing_user().id != Settings::Get().GetSquchanUserId()) {
+    if (Settings::Get().GetSquchanUserId() != slash_command.command.get_issuing_user().id) {
       auto const invalid_user_reply = dpp::message("Only SquChan can trigger this command.").set_flags(dpp::m_ephemeral);
       slash_command.reply(invalid_user_reply);
     }

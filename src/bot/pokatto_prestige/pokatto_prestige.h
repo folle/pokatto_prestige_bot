@@ -27,16 +27,16 @@ public:
 
   PokattoPrestige(std::shared_ptr<dpp::cluster> bot);
 
-  bool IsSubmissionMessage(dpp::snowflake channel_id) const noexcept;
-  bool IsValidRating(dpp::snowflake user_id, std::string const& emoji_name) const noexcept;
-
-  void AddRating(dpp::snowflake message_id, dpp::snowflake channel_id, std::string const& emoji_name) noexcept;
+  void AddRating(dpp::snowflake message_id, dpp::snowflake channel_id, dpp::snowflake reacting_user_id, std::string const& emoji_name) noexcept;
 
   void SendPointsHistory(dpp::snowflake user_id) noexcept;
 
   void ResyncMissedPoints() noexcept;
 
 private:
+  bool IsSubmissionMessage(dpp::snowflake channel_id) const noexcept;
+  bool IsValidRating(dpp::snowflake user_id, std::string const& emoji_name) const noexcept;
+
   bool ResyncAllPoints() noexcept;
 
   bool HandleMonthChange() noexcept;

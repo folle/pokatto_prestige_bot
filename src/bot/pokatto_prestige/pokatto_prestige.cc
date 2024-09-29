@@ -109,19 +109,12 @@ PokattoPrestige::~PokattoPrestige() {
   logger_.Info("Terminated Pokatto Prestige");
 }
 
-bool PokattoPrestige::IsSubmissionMessage(dpp::snowflake const channel_id) const noexcept {
-  return (Settings::Get().GetThreadId(Settings::Threads::kSubmissionFanarts) == channel_id) ||
-         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionMemes) == channel_id) ||
-         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionThumbnails) == channel_id) ||
-         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionVideosEdits) == channel_id) ||
-         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionYoutubeClips) == channel_id);
-}
+void PokattoPrestige::AddRating(dpp::snowflake const message_id, dpp::snowflake const channel_id,
+                                dpp::snowflake const reacting_user_id, std::string const& emoji_name) noexcept {
+  if (!IsSubmissionMessage(channel_id) || !IsValidRating(reacting_user_id, emoji_name)) {
+    return;
+  }
 
-bool PokattoPrestige::IsValidRating(dpp::snowflake const user_id, std::string const& emoji_name) const noexcept {
-  return (Settings::Get().GetSquchanUserId() == user_id) && rating_emojis_.contains(emoji_name);
-}
-
-void PokattoPrestige::AddRating(dpp::snowflake const message_id, dpp::snowflake const channel_id, std::string const& emoji_name) noexcept {
   auto const& rating = rating_emojis_.at(emoji_name);
   auto const add_rating_processing_function = std::function<void()>([this, channel_id, message_id, rating]{
     logger_.Info("Adding rating. Message id: '{}'. Rating: '{}'", message_id, rating);
@@ -148,6 +141,18 @@ void PokattoPrestige::SendPointsHistory(dpp::snowflake const user_id) noexcept {
     logger_.Info("Finished sending points history. User id: '{}'", user_id);
   });
   QueueSubmission(send_points_history_processing_function);
+}
+
+bool PokattoPrestige::IsSubmissionMessage(dpp::snowflake const channel_id) const noexcept {
+  return (Settings::Get().GetThreadId(Settings::Threads::kSubmissionFanarts) == channel_id) ||
+         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionMemes) == channel_id) ||
+         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionThumbnails) == channel_id) ||
+         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionVideosEdits) == channel_id) ||
+         (Settings::Get().GetThreadId(Settings::Threads::kSubmissionYoutubeClips) == channel_id);
+}
+
+bool PokattoPrestige::IsValidRating(dpp::snowflake const user_id, std::string const& emoji_name) const noexcept {
+  return (Settings::Get().GetSquchanUserId() == user_id) && rating_emojis_.contains(emoji_name);
 }
 
 bool PokattoPrestige::ResyncAllPoints() noexcept {
@@ -471,7 +476,7 @@ bool PokattoPrestige::SendThreadPointsToUser(dpp::snowflake thread_id, dpp::snow
       }
 
       auto const has_squchan_reacted = std::any_of(rating_reaction_users.cbegin(), rating_reaction_users.cend(),
-                                                  [](auto const& user){ return Settings::Get().GetSquchanUserId() == user.first; });
+                                                   [](auto const& user){ return Settings::Get().GetSquchanUserId() == user.first; });
       if (!has_squchan_reacted) {
         submissions_info.push(fmt::format("Not rated: {} - ID: {}\n", message_url, message_id));
         continue;
